@@ -1,0 +1,358 @@
+---
+title: "Lübecker Zahlen -- Bevölkerungsstatistik"
+format: dashboard
+logo: images/logo.svg
+theme:
+  - cosmo
+  - theme/custom.scss
+params:
+  jahr: 2022
+---
+
+```{r}
+#| label: setup
+
+library(bsicons)
+library(bslib)
+library(dplyr)
+library(htmltools)
+library(leaflet)
+library(plotly)
+library(sf)
+library(tidyr)
+
+df <- readr::read_csv("data/data.csv")
+alter <- readr::read_csv("data/alter.csv")
+farben <- scales::pal_brewer("qual", 7)(5)
+
+trends <- df %>%
+  filter(jahr >= params$jahr - 4) %>%
+  pivot_longer(
+    !c(jahr, stadtteil),
+    names_to = "variable",
+    values_to = "wert"
+  ) %>%
+  summarize(
+    aktuell = wert[jahr == params$jahr],
+    trend = coef(lm(wert ~ jahr))[2] / mean(wert) * 100,
+    pfeil = case_when(
+      trend >=  1   ~ "arrow-up-circle",
+      trend >=  0.2 ~ "arrow-up-right-circle",
+      trend >  -0.2 ~ "arrow-right-circle",
+      trend >  -1   ~ "arrow-down-right-circle",
+      trend <= -1   ~ "arrow-down-circle"
+    ),
+    farbe = case_when(
+      trend >=  1   ~ "#2a7b89",
+      trend >=  0.2 ~ "#2a9d8f",
+      trend >  -0.2 ~ "#e9c46a",
+      trend >  -1   ~ "#f4a261",
+      trend <= -1   ~ "#e76f51"
+    ),
+    html_box = HTML(as.character(span(
+      style = "white-space: nowrap",
+      format(round(aktuell, 2), big.mark = ".", decimal.mark = ","),
+      bs_icon(pfeil)
+    ))),
+    html_tab = HTML(as.character(span(
+      style = "white-space: nowrap",
+      format(round(aktuell, 2), big.mark = ".", decimal.mark = ","),
+      span(style = paste0("color: ", farbe), bs_icon(paste0(pfeil, "-fill")))
+    ))),
+    .by = c(stadtteil, variable)
+  )
+```
+
+# {.sidebar}
+
+**Berichtsjahr:** <br>
+`{r} params$jahr`
+
+**Herausgeberin:** <br>
+[Hansestadt Lübeck](https://luebeck.de) <br>
+Der Bürgermeister <br>
+Zentrale Verwaltungsdienste, Statistik und Wahlen <br>
+[Kommunale Statistikstelle](https://statistik)
+
+**Auskünfte:** <br>
+[statistik@luebeck.de](mailto:statistik@luebeck.de)
+
+**Lizenz:** <br>
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de)
+
+**Hinweise:** <br>
+Pfeile zeigen Fünfjahrestrends an.
+
+Entwickelt von [@hriebl](https://github.com/hriebl) für die Hansestadt Lübeck, basierend auf [Quarto Dashboards](https://quarto.org/docs/dashboards) von [Posit](https://posit.co).
+
+*Kein offizielles Angebot der Hansestadt Lübeck.*
+
+# Einwohner:innen
+
+## Row {height="25%"}
+
+```{r}
+gefiltert <- trends %>%
+  filter(stadtteil == "00 - Lübeck")
+
+value_box(
+  title = "Einwohner:innen",
+  value = gefiltert %>% filter(variable == "einwohner") %>% pull(html_box),
+  showcase = bs_icon("people"),
+  theme = value_box_theme(bg = farben[1])
+)
+```
+
+```{r}
+value_box(
+  title = "Geburten",
+  value = gefiltert %>% filter(variable == "geburten") %>% pull(html_box),
+  showcase = bs_icon("cake2"),
+  theme = value_box_theme(bg = farben[2])
+)
+```
+
+```{r}
+value_box(
+  title = "Sterbefälle",
+  value = gefiltert %>% filter(variable == "sterbefaelle") %>% pull(html_box),
+  showcase = bs_icon("heartbreak"),
+  theme = value_box_theme(bg = farben[3])
+)
+```
+
+```{r}
+value_box(
+  title = "Zuzüge",
+  value = gefiltert %>% filter(variable == "zuzuege") %>% pull(html_box),
+  showcase = bs_icon("box-arrow-in-left"),
+  theme = value_box_theme(bg = farben[4])
+)
+```
+
+```{r}
+value_box(
+  title = "Wegzüge",
+  value = gefiltert %>% filter(variable == "wegzuege") %>% pull(html_box),
+  showcase = bs_icon("box-arrow-right"),
+  theme = value_box_theme(bg = farben[5])
+)
+```
+
+## Row {height="32.5%"}
+
+```{r}
+#| title: "Einwohner:innen"
+
+gefiltert <- df %>%
+  filter(stadtteil == "00 - Lübeck")
+
+legend <- list(orientation = "h", x = 0, y = 1.05, yanchor = "bottom")
+margin <- list(t = 0, r = 0, b = 0, l = 0)
+xaxis <- list(title = FALSE)
+yaxis <- list(tickformat = ",~r", title = FALSE)
+
+plot_ly(gefiltert, x = ~jahr, mode = "lines+markers") %>%
+  add_trace(y = ~einwohner, name = "Einwohner:innen", color = I(farben[1])) %>%
+  layout(legend = legend, margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
+  config(displayModeBar = FALSE, locale = "de")
+```
+
+```{r}
+#| title: "Geburten und Sterbefälle"
+
+plot_ly(gefiltert, x = ~jahr, mode = "lines+markers") %>%
+  add_trace(y = ~geburten, name = "Geburten", color = I(farben[2])) %>%
+  add_trace(y = ~sterbefaelle, name = "Sterbefälle", color = I(farben[3])) %>%
+  layout(legend = legend, margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
+  config(displayModeBar = FALSE, locale = "de")
+```
+
+```{r}
+#| title: "Zu- und Wegzüge"
+
+plot_ly(gefiltert, x = ~jahr, mode = "lines+markers") %>%
+  add_trace(y = ~zuzuege, name = "Zuzüge", color = I(farben[4])) %>%
+  add_trace(y = ~wegzuege, name = "Wegzüge", color = I(farben[5])) %>%
+  layout(legend = legend, margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
+  config(displayModeBar = FALSE, locale = "de")
+```
+
+## Row
+
+```{r}
+#| title: "Stadtteile"
+
+gefiltert <- trends %>%
+  filter(stadtteil != "00 - Lübeck") %>%
+  select(stadtteil, variable, html_tab) %>%
+  pivot_wider(names_from = "variable", values_from = "html_tab") %>%
+  select(stadtteil, einwohner, geburten, sterbefaelle, zuzuege, wegzuege)
+
+knitr::kable(
+  gefiltert,
+  format = "html",
+  col.names = c(
+    "Stadtteil",
+    "Einwohner:innen",
+    "Geburten",
+    "Sterbefälle",
+    "Zuzüge",
+    "Wegzüge"
+  ),
+  align = "lrrrrr",
+  escape = FALSE
+)
+```
+
+# Alter
+
+## Row {height="25%"}
+
+```{r}
+gefiltert <- trends %>%
+  filter(stadtteil == "00 - Lübeck")
+
+value_box(
+  title = "Durchschnittsalter",
+  value = gefiltert %>% filter(variable == "durchschnittsalter") %>% pull(html_box),
+  showcase = bs_icon("clipboard-data"),
+  theme = value_box_theme(bg = farben[1])
+)
+```
+
+```{r}
+value_box(
+  title = "Kinder und Jugendliche",
+  value = gefiltert %>% filter(variable == "kinder") %>% pull(html_box),
+  showcase = bs_icon("balloon"),
+  theme = value_box_theme(bg = farben[3])
+)
+```
+
+```{r}
+value_box(
+  title = "Erwachsene zwischen 18 und 64",
+  value = gefiltert %>% filter(variable == "erwachsene") %>% pull(html_box),
+  showcase = bs_icon("tools"),
+  theme = value_box_theme(bg = farben[4])
+)
+```
+
+```{r}
+value_box(
+  title = "Ältere Personen über 65",
+  value = gefiltert %>% filter(variable == "aeltere") %>% pull(html_box),
+  showcase = bs_icon("eyeglasses"),
+  theme = value_box_theme(bg = farben[5])
+)
+```
+
+## Row
+
+### Column {width="40%"}
+
+```{r}
+#| title: "Alterspyramide"
+
+alter$frauen <- -alter$frauen
+
+plot_ly(alter, y = ~alter, orientation = "h") %>%
+  add_bars(
+    x = ~frauen,
+    name = "Frauen",
+    color = I(farben[2]),
+    hovertemplate = "Alter: %{y}<br>Anzahl: %{customdata}",
+    customdata = -alter$frauen
+  ) %>%
+  add_bars(
+    x = ~maenner,
+    name = "Männer",
+    color = I(farben[1]),
+    hovertemplate = "Alter: %{y}<br>Anzahl: %{x}",
+  ) %>%
+  layout(
+    bargap = 0,
+    barmode = "overlay",
+    legend = legend,
+    margin = list(t = 0, r = 0, l = 0),
+    xaxis = list(showticklabels = FALSE, title = "Anzahl"),
+    yaxis = list(title = "Alter")
+  ) %>%
+  config(
+    displayModeBar = FALSE,
+    locale = "de"
+  )
+```
+
+### Column
+
+#### Row {height="40%"}
+
+```{r}
+#| title: "Altersgruppen (relative Entwicklung)"
+
+gefiltert <- df %>%
+  filter(stadtteil == "00 - Lübeck") %>%
+  select(jahr, kinder, erwachsene, aeltere) %>%
+  mutate(across(!jahr, ~ .x / .x[which.min(jahr)], .names = "rel_{.col}"))
+
+hovertemplate <- paste0("Jahr: %{x}<br>",
+                        "Anzahl: %{customdata:,~r}<br>",
+                        "Relative Entwicklung: %{y}")
+
+yaxis <- list(tickformat = ",.2~%", title = FALSE)
+
+plot_ly(gefiltert, x = ~jahr, mode = "lines+markers") %>%
+  add_trace(
+    y = ~rel_kinder,
+    name = "Kinder und Jugendliche",
+    color = I(farben[3]),
+    hovertemplate = hovertemplate,
+    customdata = gefiltert$kinder
+  ) %>%
+  add_trace(
+    y = ~rel_erwachsene,
+    name = "Erwachsene zwischen 18 und 64",
+    color = I(farben[4]),
+    hovertemplate = hovertemplate,
+    customdata = gefiltert$erwachsene
+  ) %>%
+  add_trace(
+    y = ~rel_aeltere,
+    name = "Ältere Personen über 65",
+    color = I(farben[5]),
+    hovertemplate = hovertemplate,
+    customdata = gefiltert$aeltere
+  ) %>%
+  layout(margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
+  config(displayModeBar = FALSE, locale = "de")
+```
+
+#### Row
+
+```{r}
+#| title: "Durchschnittsalter"
+
+stadtteile <- read_sf("data/stadtteile") %>%
+  select(stadtteil = Name_Stadt, geometry) %>%
+  left_join(filter(df, jahr == params$jahr)) %>%
+  st_transform( "epsg:4326")
+
+pal <- colorNumeric("viridis", NULL, reverse = TRUE)
+
+leaflet(stadtteile) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~pal(durchschnittsalter),
+    label = ~paste0(stadtteil, ": ", round(durchschnittsalter, 2), " Jahre"),
+    color = "#4d4d4d",
+    fillOpacity = 0.5,
+    opacity = 1,
+    weight = 2
+  )
+```
+
+# Migration
+
+# Leben

@@ -1,0 +1,59 @@
+/*-- scss:rules --*/
+
+// switch to scrolling layout on medium screens
+// https://github.com/quarto-dev/quarto-cli/blob/c0b804f3296b37d118586c751d0277180d5c4585/src/resources/formats/html/bslib/components/scss/grid.scss#L25-L42
+
+.bslib-grid {
+  @include media-breakpoint-down(lg) {
+    grid-template-columns: 1fr !important;
+    height: var(--bslib-grid-height-mobile);
+
+    &.grid {
+      grid-auto-rows: var(--bslib-grid--row-heights--xs, auto);
+      height: unset !important;
+    }
+  }
+}
+
+.bslib-grid-item {
+  @include media-breakpoint-down(lg) {
+    grid-column: 1 / -1;
+  }
+}
+
+// switch to scrolling layout on medium screens
+// https://github.com/quarto-dev/quarto-cli/blob/c0b804f3296b37d118586c751d0277180d5c4585/src/resources/formats/dashboard/quarto-dashboard.scss#L402-L404
+// https://github.com/quarto-dev/quarto-cli/blob/c0b804f3296b37d118586c751d0277180d5c4585/src/resources/formats/dashboard/quarto-dashboard.scss#L583-L593
+
+.quarto-dashboard {
+  @include media-breakpoint-down(lg) {
+    height: auto;
+
+    .bslib-grid {
+      grid-template-rows: minmax(1em, max-content) !important;
+    }
+
+    .page-layout-custom {
+      min-height: 100vh;
+    }
+
+    .sidebar-content {
+      height: inherit;
+    }
+  }
+}
+
+// other rules
+
+.quarto-dashboard .bslib-value-box .value-box-value {
+  font-size: calc(1.325rem + .9vw);
+
+  @include media-breakpoint-up(xl) {
+    font-size: 2rem;
+  }
+}
+
+.card .table {
+  margin-top: 0;
+  margin-bottom: 0;
+}
