@@ -250,7 +250,7 @@ value_box(
 
 ## Row
 
-### Column {width="40%"}
+### Column
 
 ```{r}
 #| title: "Alterspyramide"
@@ -325,7 +325,7 @@ plot_ly(gefiltert, x = ~jahr, mode = "lines+markers") %>%
     hovertemplate = hovertemplate,
     customdata = gefiltert$aeltere
   ) %>%
-  layout(margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
+  layout(legend = legend, margin = margin, xaxis = xaxis, yaxis = yaxis) %>%
   config(displayModeBar = FALSE, locale = "de")
 ```
 
@@ -350,6 +350,12 @@ leaflet(stadtteile) %>%
     fillOpacity = 0.5,
     opacity = 1,
     weight = 2
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = ~durchschnittsalter,
+    title = "Durchschnittsalter",
+    opacity = 1
   )
 ```
 
